@@ -19,3 +19,6 @@ plugins:
     opt: 
       - paths=source_relative
       - generate_unbound_methods=true
+  - name: js
+    out: ui/client/
+    opt: import_style=commonjs,binary
