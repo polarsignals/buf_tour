@@ -22,3 +22,8 @@ plugins:
   - name: js
     out: ui/client/
     opt: import_style=commonjs,binary
+  - name: ts
+    out: ui/client
+    path: ./node_modules/.bin/protoc-gen-ts
+    opt:
+      - service=grpc-web
