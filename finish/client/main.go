@@ -25,13 +25,15 @@ func run() error {
 	log.Println("Connected to", connectTo)
 
 	petStore := petv1.NewPetStoreServiceClient(conn)
-	if _, err := petStore.PutPet(context.Background(), &petv1.PutPetRequest{
+	resp, err := petStore.PutPet(context.Background(), &petv1.PutPetRequest{
 		PetType: petv1.PetType_PET_TYPE_SNAKE,
 		Name:    "Ekans",
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("failed to PutPet: %w", err)
 	}
 
 	log.Println("Successfully PutPet")
+	fmt.Println(resp.Pet)
 	return nil
 }
