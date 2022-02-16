@@ -42,8 +42,7 @@ func run() error {
 	)
 
 	log.Println("starting server", port)
-	mux := http.NewServeMux()
-	return http.ListenAndServe(port, grpcHandlerFunc(server, mux))
+	return http.ListenAndServe(port, grpcHandlerFunc(server, grpcWebMux))
 }
 
 func grpcHandlerFunc(grpcServer *grpc.Server, otherHandler http.Handler) http.Handler {
