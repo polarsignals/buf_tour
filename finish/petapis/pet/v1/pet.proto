@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package pet.v1;
 
+import "google/api/annotations.proto";
 import "payment/v1alpha1/payment.proto";
 import "google/type/datetime.proto";
 
@@ -53,8 +54,26 @@ message PurchasePetRequest {
 message PurchasePetResponse {}
 
 service PetStoreService {
-  rpc GetPet(GetPetRequest) returns (GetPetResponse) {}
-  rpc PutPet(PutPetRequest) returns (PutPetResponse) {}
-  rpc DeletePet(DeletePetRequest) returns (DeletePetResponse) {}
-  rpc PurchasePet(PurchasePetRequest) returns (PurchasePetResponse) {}
+  rpc GetPet(GetPetRequest) returns (GetPetResponse) {
+      option (google.api.http) = {
+        get: "/v1/pets/{pet_id}"
+      };
+  }
+  rpc PutPet(PutPetRequest) returns (PutPetResponse) {
+      option (google.api.http) = {
+        post: "/v1/pets"
+        body: "*"
+      };
+  }
+  rpc DeletePet(DeletePetRequest) returns (DeletePetResponse) {
+      option (google.api.http) = {
+        delete: "/v1/pets/{pet_id}"
+      };
+  }
+  rpc PurchasePet(PurchasePetRequest) returns (PurchasePetResponse) {
+      option (google.api.http) = {
+        post: "/v1/pets/{pet_id}"
+        body: "*"
+      };
+  }
 }
