@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io/fs"
 	"log"
 	"net/http"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	// This import path is based on the name declaration in the go.mod,
 	// and the gen/proto/go output location in the buf.gen.yaml.
 	petv1 "github.com/bufbuild/buf-tour/petstore/gen/proto/go/pet/v1"
+	ui "github.com/bufbuild/buf-tour/petstore/ui/petstore"
 	"github.com/go-chi/cors"
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -43,8 +45,17 @@ func run() error {
 		},
 	)
 
+	uifs, _ := fs.Sub(ui.FS, "public")
+	uiHandler, _ := uiHandler(uifs)
+
 	log.Println("starting server", port)
-	return http.ListenAndServe(port, cors.AllowAll().Handler(grpcHandlerFunc(server, grpcWebMux)))
+	return http.ListenAndServe(port, cors.AllowAll().Handler(grpcHandlerFunc(server, fallbackNotFound(grpcWebMux, uiHandler))))
+}
+
+func uiHandler(uifs fs.FS) (*http.ServeMux, error) {
+	uiHandler := http.ServeMux{}
+	uiHandler.Handle("/", http.FileServer(http.FS(uifs)))
+	return &uiHandler, nil
 }
 
 func grpcHandlerFunc(grpcServer *grpc.Server, otherHandler http.Handler) http.Handler {
@@ -108,4 +119,46 @@ func (s *petStoreServiceServer) GetPet(ctx context.Context, req *petv1.GetPetReq
 	return &petv1.GetPetResponse{
 		Pet: p,
 	}, nil
+}
+
+// wrapResponseWriter is a proxy around an http.ResponseWriter that allows you to hook into the response.
+type wrapResponseWriter struct {
+	http.ResponseWriter
+
+	wroteHeader bool
+	code        int
+}
+
+func (wrw *wrapResponseWriter) WriteHeader(code int) {
+	if !wrw.wroteHeader {
+		wrw.code = code
+		if code != http.StatusNotFound {
+			wrw.wroteHeader = true
+			wrw.ResponseWriter.WriteHeader(code)
+		}
+	}
+}
+
+// Write sends bytes to wrapped response writer, in case of not found it suppresses further writes.
+func (wrw *wrapResponseWriter) Write(b []byte) (int, error) {
+	if wrw.notFound() {
+		return len(b), nil
+	}
+	return wrw.ResponseWriter.Write(b)
+}
+
+func (wrw *wrapResponseWriter) notFound() bool {
+	return wrw.code == http.StatusNotFound
+}
+
+// fallbackNotFound wraps the given handler with the `fallback` handle to fallback in case of not found.
+func fallbackNotFound(handler, fallback http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		frw := wrapResponseWriter{ResponseWriter: w}
+		handler.ServeHTTP(&frw, r)
+		if frw.notFound() {
+			w.Header().Del("Content-Type")
+			fallback.ServeHTTP(w, r)
+		}
+	}
 }
